@@ -2,8 +2,12 @@ import React, { useState, useEffect } from 'react';
 import clsx from 'clsx';
 
 const numMines = [10, 40, 99];
-
 let visited: boolean[][];
+
+// TODO
+// make it so you cant left click flags 
+// lose and win
+// timer
 
 function generateBoard(size_x: number, size_y: number, value: number, difficulty: number) {
   let board: number[][] = [];
@@ -60,11 +64,10 @@ function Tile({
   size_x,
   size_y,
   onClick,
-  started,
-  floodFill,
   clicked,
   updateClicked,
-  changeStarted,
+  changeClickCoords,
+  tileSize,
 }: {
   value: number, 
   isLastInRow: boolean,
@@ -73,11 +76,10 @@ function Tile({
   size_x: number,
   size_y: number,
   onClick: (value: number) => void,
-  started: boolean,
-  floodFill: (init_x: number, init_y: number, flooded: number[], visited: boolean[][]) => number[],
   clicked: boolean[][],
   updateClicked: (x: number, y: number) => void,
-  changeStarted: (value: number) => void,
+  changeClickCoords: (value: number) => void,
+  tileSize: string,
 }) {
   const x = Math.floor(value / size_y);
   const y = value % size_y;
@@ -102,33 +104,33 @@ function Tile({
   return (
     <button
       className={clsx(
-        'container aspect-[1/1] p-4 text-white border-2 border-gray-300 w-16 h-16',
+        'container aspect-[1/1] text-white border-2 border-gray-300',
         clicked[x][y] ? 'bg-white' : 'bg-black',
         !isLastInRow ? 'border-b-0' : '',
         !isLastInCol ? 'border-r-0' : '',
       )}
+      style={{
+        width: (window.innerHeight - 100) / size_x,
+        height: (window.innerHeight - 100) / size_x,
+      }}
       onClick={() => {
         renderTile();
         onClick(value);
-        changeStarted(value);
+        changeClickCoords(value);
       }}
       onContextMenu={handleRightClick}
     >
-      {isMine && clicked[x][y] && (
-        <div className="flex justify-center items-center w-full h-full">
-          <span className="text-red-500 text-5xl">O</span>
-        </div>
-      )}
-      {minesAdjacent > 0 && clicked[x][y] && (
-        <div className="flex justify-center items-center w-full h-full">
-          <span className="text-red-500 text-5xl">{minesAdjacent}</span>
-        </div>
-      )}
-      {isFlagged && !clicked[x][y] && (
-        <div className="flex justify-center items-center w-full h-full">
-          <span className="text-red-500 text-5xl">F</span>
-        </div>
-      )}
+      <div className="flex justify-center items-center w-full h-full">
+        <span className="text-red-500 text-5xl">
+          {clicked[x][y]
+            ? isMine
+              ? 'O'
+              : minesAdjacent > 0
+              ? minesAdjacent : null
+            : isFlagged
+            ? 'F' : null}
+        </span>
+      </div>
     </button>
   );
 }
@@ -213,6 +215,8 @@ function Game({difficulty}: {difficulty: number}) {
     setClickCoords([Math.floor(value / size_y), value % size_y]);
   }
 
+  const tileSize = `calc(100% / ${size_y})`;
+
   return (
     <div
       className={clsx(
@@ -241,11 +245,10 @@ function Game({difficulty}: {difficulty: number}) {
             size_x={size_x}
             size_y={size_y}
             onClick={handleClick}
-            started={started}
-            floodFill={floodFill}
             clicked={clicked}
             updateClicked={updateClicked}
-            changeStarted={changeClickCoords}
+            changeClickCoords={changeClickCoords}
+            tileSize={tileSize}
           />
         )})}
     </div>
