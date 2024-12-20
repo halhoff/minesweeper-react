@@ -2,8 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import clsx from 'clsx';
 
 const numMines = [10, 40, 99];
-let visited: boolean[][];
-let gameOverToggle = false;
+let gameEndToggle = false;
 
 // TODO
 // win
@@ -113,7 +112,7 @@ function Tile({
 
   const handleRightClick = (event) => {
     event.preventDefault();
-    if (!gameOverToggle) {
+    if (!gameEndToggle) {
       const newFlaggedState = [...flaggedTiles];
       newFlaggedState[x][y] = !isFlagged;
       setFlaggedTiles(newFlaggedState);
@@ -135,7 +134,7 @@ function Tile({
         outline: 'none'
       }}
       onClick={() => {
-        if (!gameOverToggle && !isFlagged) {
+        if (!gameEndToggle && !isFlagged) {
           renderTile();
           handleLeftClick(value, isMine);
           changeClickCoords(value); 
@@ -177,7 +176,7 @@ function Game({difficulty}: {difficulty: number}) {
   const [board, setBoard] = useState<number[][]>([]);
   const [started, setStarted] = useState(false);
   const [clickCoords, setClickCoords] = useState<number[]>([]);
-  const [gameOverMessage, setGameOverMessage] = useState("");
+  const [gameOverMessage, setGameEndMessage] = useState("");
 
   let tiles: number[] = [];
   let size_x = -1;
@@ -208,7 +207,7 @@ function Game({difficulty}: {difficulty: number}) {
     return Array.from({ length: size_x }, () => Array(size_y).fill(false));
   });
 
-  visited = Array.from({ length: size_x }, () => Array(size_y).fill(false));
+  let visited = Array.from({ length: size_x }, () => Array(size_y).fill(false));
 
   function handleLeftClick(value: number, isMine: boolean) {
     if (!started) {
@@ -216,8 +215,8 @@ function Game({difficulty}: {difficulty: number}) {
       setBoard(newBoard);
     }
     if (isMine) {
-      setGameOverMessage('Game Over<br />Press ENTER to restart');
-      gameOverToggle = true;
+      setGameEndMessage('Game Over<br />Press ENTER to restart');
+      gameEndToggle = true;
       setRevealed(Array.from({ length: size_x }, () => Array(size_y).fill(true)));
     }
   }
@@ -225,9 +224,9 @@ function Game({difficulty}: {difficulty: number}) {
   useEffect(() => {
     console.log(revealedCount);
     if (revealedCount === size_x * size_y - numMines[difficulty]) {
-      console.log("win")
+      setGameEndMessage('You won<br />Press ENTER to restart');
     }
-  }, [revealedCount])
+  }, [revealedCount, difficulty, size_x, size_y])
 
   const floodFill = useCallback((x: number, y: number, flooded: number[]) => {
     if (!visited[x][y] && board[x][y] >= 0) {
@@ -250,9 +249,6 @@ function Game({difficulty}: {difficulty: number}) {
   
   useEffect(() => {
     if (clickCoords.length > 0 && board.length > 0 && !visited[clickCoords[0]][clickCoords[1]]) {
-      console.log(clickCoords);
-      console.log(visited);
-      console.log(visited[clickCoords[0]][clickCoords[1]]);
       let toFlood = floodFill(clickCoords[0], clickCoords[1], []);
       for (let i = 0; i < toFlood.length; ++i) {
         const flood_x = Math.floor(toFlood[i] / size_y);
@@ -282,10 +278,11 @@ function Game({difficulty}: {difficulty: number}) {
       setBoard([]);
       setRevealed(Array.from({ length: size_x }, () => Array(size_y).fill(false)));
       setFlaggedTiles(Array.from({ length: size_x }, () => Array(size_y).fill(false)));
-      setGameOverMessage("")
-      gameOverToggle = false;
+      setGameEndMessage("")
+      gameEndToggle = false;
       visited = Array.from({ length: size_x }, () => Array(size_y).fill(false));
       setClickCoords([]);
+      setRevealedCount(0);
     }
   }
 
