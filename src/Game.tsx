@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import clsx from 'clsx';
 
 const numMines = [10, 40, 99];
 let visited: boolean[][];
+let gameOverToggle = false;
 
 // TODO
-// make it so you cant left click flags 
-// lose and win
+// win
+// difficulty select
 // timer
 
 function generateBoard(size_x: number, size_y: number, value: number, difficulty: number) {
@@ -63,11 +64,12 @@ function Tile({
   board,
   size_x,
   size_y,
-  onClick,
-  clicked,
+  handleLeftClick,
+  revealed,
+  flaggedTiles,
+  setFlaggedTiles,
   updateClicked,
   changeClickCoords,
-  tileSize,
 }: {
   value: number, 
   isLastInRow: boolean,
@@ -75,54 +77,90 @@ function Tile({
   board: number[][],
   size_x: number,
   size_y: number,
-  onClick: (value: number) => void,
-  clicked: boolean[][],
+  handleLeftClick: (value: number, isMine: boolean) => void,
+  revealed: boolean[][],
+  flaggedTiles: boolean[][],
+  setFlaggedTiles: React.Dispatch<React.SetStateAction<boolean[][]>>,
   updateClicked: (x: number, y: number) => void,
   changeClickCoords: (value: number) => void,
-  tileSize: string,
 }) {
+
   const x = Math.floor(value / size_y);
   const y = value % size_y;
   const [isMine, setIsMine] = useState(false);
   const [minesAdjacent, setMinesAdjacent] = useState(0);
   const [isFlagged, setIsFlagged] = useState(false);
+
   useEffect(() => {
-    if (board.length > 0 && board[x][y] === -1) {
-      setIsMine(true);
+    if (board.length > 0) {
+      if (board[x][y] === -1) setIsMine(true);
+      else setIsMine(false);
+      if (board[x][y] >= 0) setMinesAdjacent(board[x][y]);
     }
-    else if (board.length > 0 && board[x][y] > 0) {
-      setMinesAdjacent(board[x][y]);
+    else {
+      setIsMine(false);
+      setMinesAdjacent(0);
     }
-  }, [x, y, board]);
+  }, [board, x, y]);
+
+  useEffect(() => {
+    setIsFlagged(flaggedTiles[x][y]);
+  }, [flaggedTiles, x, y]);
+
   const renderTile = () => {
     updateClicked(x, y);
   }
+
   const handleRightClick = (event) => {
     event.preventDefault();
-    setIsFlagged(!isFlagged);
-  }
+    if (!gameOverToggle) {
+      const newFlaggedState = [...flaggedTiles];
+      newFlaggedState[x][y] = !isFlagged;
+      setFlaggedTiles(newFlaggedState);
+    }
+  };
+
   return (
     <button
       className={clsx(
-        'container aspect-[1/1] text-white border-2 border-gray-300',
-        clicked[x][y] ? 'bg-white' : 'bg-black',
+        'container aspect-[1/1] text-white border-2 border-gray-600',
+        revealed[x][y] && isMine ? 'bg-red-900' : 
+        (revealed[x][y] && !isMine ? 'bg-blue-900' : 'bg-darkblue'),
         !isLastInRow ? 'border-b-0' : '',
-        !isLastInCol ? 'border-r-0' : '',
+        !isLastInCol ? 'border-r-0' : ''
       )}
       style={{
-        width: (window.innerHeight - 100) / size_x,
-        height: (window.innerHeight - 100) / size_x,
+        width: (window.innerHeight - 120) / size_x,
+        height: (window.innerHeight - 120) / size_x,
+        outline: 'none'
       }}
       onClick={() => {
-        renderTile();
-        onClick(value);
-        changeClickCoords(value);
+        if (!gameOverToggle && !isFlagged) {
+          renderTile();
+          handleLeftClick(value, isMine);
+          changeClickCoords(value); 
+        }
       }}
       onContextMenu={handleRightClick}
     >
       <div className="flex justify-center items-center w-full h-full">
-        <span className="text-red-500 text-5xl">
-          {clicked[x][y]
+        <span 
+          className={clsx({
+            'text-blue-500': minesAdjacent === 1,
+            'text-green-500': minesAdjacent === 2,
+            'text-red-500': minesAdjacent === 3,
+            'text-purple-500': minesAdjacent === 4,
+            'text-yellow-500': minesAdjacent === 5,
+            'text-teal-500': minesAdjacent === 6,
+            'text-gray-900': minesAdjacent === 7,
+            'text-gray-800': minesAdjacent === 8,
+            'text-red-900': isFlagged && !revealed[x][y],
+          })}
+          style={{
+            fontSize: ((window.innerHeight - 100) / size_x) / 2 + 'px'
+          }}
+        >
+          {revealed[x][y]
             ? isMine
               ? 'O'
               : minesAdjacent > 0
@@ -139,9 +177,8 @@ function Game({difficulty}: {difficulty: number}) {
   const [board, setBoard] = useState<number[][]>([]);
   const [started, setStarted] = useState(false);
   const [clickCoords, setClickCoords] = useState<number[]>([]);
-  if (difficulty < 0 || difficulty > 2) {
-    throw new Error("Supported difficulties are 0, 1, and 2");
-  }
+  const [gameOverMessage, setGameOverMessage] = useState("");
+
   let tiles: number[] = [];
   let size_x = -1;
   let size_y = -1;
@@ -161,20 +198,61 @@ function Game({difficulty}: {difficulty: number}) {
     size_y = 30;
   }
 
-  const [clicked, setClicked] = useState<boolean[][]>(() => {
+  const [revealed, setRevealed] = useState<boolean[][]>(() => {
     return Array.from({ length: size_x }, () => Array(size_y).fill(false));
   });
+
+  const [revealedCount, setRevealedCount] = useState(0);
+
+  const [flaggedTiles, setFlaggedTiles] = useState<boolean[][]>(() => {
+    return Array.from({ length: size_x }, () => Array(size_y).fill(false));
+  });
+
   visited = Array.from({ length: size_x }, () => Array(size_y).fill(false));
 
-  function handleClick(value: number) {
+  function handleLeftClick(value: number, isMine: boolean) {
     if (!started) {
       const newBoard = generateBoard(size_x, size_y, value, difficulty);
       setBoard(newBoard);
     }
+    if (isMine) {
+      setGameOverMessage('Game Over<br />Press ENTER to restart');
+      gameOverToggle = true;
+      setRevealed(Array.from({ length: size_x }, () => Array(size_y).fill(true)));
+    }
   }
+
+  useEffect(() => {
+    console.log(revealedCount);
+    if (revealedCount === size_x * size_y - numMines[difficulty]) {
+      console.log("win")
+    }
+  }, [revealedCount])
+
+  const floodFill = useCallback((x: number, y: number, flooded: number[]) => {
+    if (!visited[x][y] && board[x][y] >= 0) {
+      visited[x][y] = true;
+      setRevealedCount(prevRevealedCount => prevRevealedCount + 1);
+      flooded.push(x * size_y + y);
+      if (board[x][y] === 0) {
+        if (x > 0 && !visited[x - 1][y]) { floodFill(x - 1, y, flooded); }
+        if (x < size_x - 1 && !visited[x + 1][y]) { floodFill(x + 1, y, flooded); }
+        if (y > 0 && !visited[x][y - 1]) { floodFill(x, y - 1, flooded); }
+        if (y < size_y - 1 && !visited[x][y + 1]) { floodFill(x, y + 1, flooded); }
+        if (x > 0 && y > 0 && !visited[x - 1][y - 1]) { floodFill(x - 1, y - 1, flooded); }
+        if (x > 0 && y < size_y - 1 && !visited[x - 1][y + 1]) { floodFill(x - 1, y + 1, flooded); }
+        if (x < size_x - 1 && y > 0 && !visited[x + 1][y - 1]) { floodFill(x + 1, y - 1, flooded); }
+        if (x < size_x - 1 && y < size_y - 1 && !visited[x + 1][y + 1]) { floodFill(x + 1, y + 1, flooded); }
+      }
+    }
+    return flooded;
+  }, [board, size_x, size_y]);
   
   useEffect(() => {
-    if (board.length > 0) {
+    if (clickCoords.length > 0 && board.length > 0 && !visited[clickCoords[0]][clickCoords[1]]) {
+      console.log(clickCoords);
+      console.log(visited);
+      console.log(visited[clickCoords[0]][clickCoords[1]]);
       let toFlood = floodFill(clickCoords[0], clickCoords[1], []);
       for (let i = 0; i < toFlood.length; ++i) {
         const flood_x = Math.floor(toFlood[i] / size_y);
@@ -183,28 +261,10 @@ function Game({difficulty}: {difficulty: number}) {
       }
       setStarted(true);
     }
-  }, [clickCoords]);
-
-  function floodFill(init_x: number, init_y: number, flooded: number[]) {
-    if (!visited[init_x][init_y] && board[init_x][init_y] >= 0) {
-      visited[init_x][init_y] = true;
-      flooded.push(init_x * size_y + init_y);
-      if (board[init_x][init_y] === 0) {
-        if (init_x > 0 && !visited[init_x - 1][init_y]) { floodFill(init_x - 1, init_y, flooded); }
-        if (init_x < size_x - 1 && !visited[init_x + 1][init_y]) { floodFill(init_x + 1, init_y, flooded); }
-        if (init_y > 0 && !visited[init_x][init_y - 1]) { floodFill(init_x, init_y - 1, flooded); }
-        if (init_y < size_y - 1 && !visited[init_x][init_y + 1]) { floodFill(init_x, init_y + 1, flooded); }
-        if (init_x > 0 && init_y > 0 && !visited[init_x - 1][init_y - 1]) { floodFill(init_x - 1, init_y - 1, flooded); }
-        if (init_x > 0 && init_y < size_y - 1 && !visited[init_x - 1][init_y + 1]) { floodFill(init_x - 1, init_y + 1, flooded); }
-        if (init_x < size_x - 1 && init_y > 0 && !visited[init_x + 1][init_y - 1]) { floodFill(init_x + 1, init_y - 1, flooded); }
-        if (init_x < size_x - 1 && init_y < size_y - 1 && !visited[init_x + 1][init_y + 1]) { floodFill(init_x + 1, init_y + 1, flooded); }
-      }
-    }
-    return flooded;
-  }
+  }, [clickCoords, board, floodFill, size_y]);
 
   function updateClicked(x: number, y: number) {
-    setClicked(prev => {
+    setRevealed(prev => {
       const newClicked = prev.map(row => row.slice());
       newClicked[x][y] = true;
       return newClicked;
@@ -215,43 +275,75 @@ function Game({difficulty}: {difficulty: number}) {
     setClickCoords([Math.floor(value / size_y), value % size_y]);
   }
 
-  const tileSize = `calc(100% / ${size_y})`;
+  const handleReset = (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      setStarted(false);
+      setBoard([]);
+      setRevealed(Array.from({ length: size_x }, () => Array(size_y).fill(false)));
+      setFlaggedTiles(Array.from({ length: size_x }, () => Array(size_y).fill(false)));
+      setGameOverMessage("")
+      gameOverToggle = false;
+      visited = Array.from({ length: size_x }, () => Array(size_y).fill(false));
+      setClickCoords([]);
+    }
+  }
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleReset);
+    return () => {
+      window.removeEventListener('keydown', handleReset);
+    };
+  }, []);
 
   return (
-    <div
-      className={clsx(
-        'justify-self-center border-2 border-black grid', {
-          'grid-cols-9 grid-rows-9': difficulty === 0,
-          'grid-cols-16 grid-rows-16': difficulty === 1,
-          'grid-cols-30 grid-rows-16': difficulty === 2,
-        })}
-        style={{
-          gridTemplateColumns: `repeat(${size_y}, 1fr)`,
-          gridTemplateRows: `repeat(${size_x}, 1fr)`,
-        }}
-    >
-      {tiles.map((tile, index) => {
-        const row = Math.floor(index / size_y);
-        const col = index % size_y;
-        const isLastInRow = row === size_x - 1;
-        const isLastInCol = col === size_y - 1;
-        return (
-          <Tile
-            key={tile}
-            value={tile}
-            isLastInRow={isLastInRow}
-            isLastInCol={isLastInCol}
-            board={board}
-            size_x={size_x}
-            size_y={size_y}
-            onClick={handleClick}
-            clicked={clicked}
-            updateClicked={updateClicked}
-            changeClickCoords={changeClickCoords}
-            tileSize={tileSize}
-          />
-        )})}
-    </div>
+    <div>
+      <div
+        className={clsx(
+          'justify-self-center border-2 border-black grid', {
+            'grid-cols-9 grid-rows-9': difficulty === 0,
+            'grid-cols-16 grid-rows-16': difficulty === 1,
+            'grid-cols-30 grid-rows-16': difficulty === 2,
+          })}
+          style={{
+            gridTemplateColumns: `repeat(${size_y}, 1fr)`,
+            gridTemplateRows: `repeat(${size_x}, 1fr)`,
+          }}
+      >
+        {tiles.map((tile, index) => {
+          const row = Math.floor(index / size_y);
+          const col = index % size_y;
+          const isLastInRow = row === size_x - 1;
+          const isLastInCol = col === size_y - 1;
+          return (
+            <Tile
+              key={tile}
+              value={tile}
+              isLastInRow={isLastInRow}
+              isLastInCol={isLastInCol}
+              board={board}
+              size_x={size_x}
+              size_y={size_y}
+              handleLeftClick={handleLeftClick}
+              revealed={revealed}
+              flaggedTiles={flaggedTiles}
+              setFlaggedTiles={setFlaggedTiles}
+              updateClicked={updateClicked}
+              changeClickCoords={changeClickCoords}
+            />
+          )})}
+      </div>
+      {
+        <div
+          className="text-white text-center absolute top-[35%] left-1/2 transform -translate-x-1/2"
+          style={{
+            fontSize: ((window.innerHeight - 100) / size_x) + 'px',
+            textShadow: '2px 2px 20px rgba(0, 0, 0, 1)'
+          }}
+          dangerouslySetInnerHTML={{ __html: gameOverMessage }}
+        />
+      }
+    </div>  
   );
 }
 
