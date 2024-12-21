@@ -2,11 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import clsx from 'clsx';
 
 const numMines = [10, 40, 99];
-let gameEndToggle = false;
 
 // TODO
-// win
-// difficulty select
 // timer
 
 function generateBoard(size_x: number, size_y: number, value: number, difficulty: number) {
@@ -69,6 +66,8 @@ function Tile({
   setFlaggedTiles,
   updateClicked,
   changeClickCoords,
+  gameEndToggle,
+  setNumFlagsLeft,
 }: {
   value: number, 
   isLastInRow: boolean,
@@ -82,6 +81,8 @@ function Tile({
   setFlaggedTiles: React.Dispatch<React.SetStateAction<boolean[][]>>,
   updateClicked: (x: number, y: number) => void,
   changeClickCoords: (value: number) => void,
+  gameEndToggle: boolean,
+  setNumFlagsLeft: React.Dispatch<React.SetStateAction<number>>,
 }) {
 
   const x = Math.floor(value / size_y);
@@ -114,6 +115,12 @@ function Tile({
     event.preventDefault();
     if (!gameEndToggle) {
       const newFlaggedState = [...flaggedTiles];
+      if (!isFlagged && !revealed[x][y]) {
+        setNumFlagsLeft(prev => prev - 1);
+      }
+      else if (isFlagged && !revealed[x][y]) {
+        setNumFlagsLeft(prev => prev + 1);
+      }
       newFlaggedState[x][y] = !isFlagged;
       setFlaggedTiles(newFlaggedState);
     }
@@ -129,8 +136,8 @@ function Tile({
         !isLastInCol ? 'border-r-0' : ''
       )}
       style={{
-        width: (window.innerHeight - 120) / size_x,
-        height: (window.innerHeight - 120) / size_x,
+        width: (window.innerHeight - 250) / size_x,
+        height: (window.innerHeight - 250) / size_x,
         outline: 'none'
       }}
       onClick={() => {
@@ -177,6 +184,8 @@ function Game({difficulty}: {difficulty: number}) {
   const [started, setStarted] = useState(false);
   const [clickCoords, setClickCoords] = useState<number[]>([]);
   const [gameOverMessage, setGameEndMessage] = useState("");
+  const [gameEndToggle, setGameEndToggle] = useState(false);
+  const [numFlagsLeft, setNumFlagsLeft] = useState(numMines[difficulty]);
 
   let tiles: number[] = [];
   let size_x = -1;
@@ -196,7 +205,7 @@ function Game({difficulty}: {difficulty: number}) {
     size_x = 16;
     size_y = 30;
   }
-
+  
   const [revealed, setRevealed] = useState<boolean[][]>(() => {
     return Array.from({ length: size_x }, () => Array(size_y).fill(false));
   });
@@ -216,13 +225,12 @@ function Game({difficulty}: {difficulty: number}) {
     }
     if (isMine) {
       setGameEndMessage('Game Over<br />Press ENTER to restart');
-      gameEndToggle = true;
+      setGameEndToggle(true);
       setRevealed(Array.from({ length: size_x }, () => Array(size_y).fill(true)));
     }
   }
 
   useEffect(() => {
-    console.log(revealedCount);
     if (revealedCount === size_x * size_y - numMines[difficulty]) {
       setGameEndMessage('You won<br />Press ENTER to restart');
     }
@@ -261,9 +269,15 @@ function Game({difficulty}: {difficulty: number}) {
 
   function updateClicked(x: number, y: number) {
     setRevealed(prev => {
-      const newClicked = prev.map(row => row.slice());
-      newClicked[x][y] = true;
-      return newClicked;
+      const newRevealed = prev.map(row => row.slice());
+      newRevealed[x][y] = true;
+      if (flaggedTiles[x][y]) {
+        setNumFlagsLeft(prev => prev + 1);
+        const newFlaggedState = [...flaggedTiles];
+        newFlaggedState[x][y] = !flaggedTiles[x][y];
+        setFlaggedTiles(newFlaggedState);
+      }
+      return newRevealed;
     });
   }
 
@@ -274,16 +288,36 @@ function Game({difficulty}: {difficulty: number}) {
   const handleReset = (event) => {
     if (event.key === 'Enter') {
       event.preventDefault();
-      setStarted(false);
-      setBoard([]);
-      setRevealed(Array.from({ length: size_x }, () => Array(size_y).fill(false)));
-      setFlaggedTiles(Array.from({ length: size_x }, () => Array(size_y).fill(false)));
-      setGameEndMessage("")
-      gameEndToggle = false;
-      visited = Array.from({ length: size_x }, () => Array(size_y).fill(false));
-      setClickCoords([]);
-      setRevealedCount(0);
+      reset();
     }
+  }
+
+  function reset() {
+    if (difficulty === 0) {
+      tiles = Array.from({ length: 81 }, (_, index) => index);
+      size_x = 9;
+      size_y = 9;
+    }
+    else if (difficulty === 1) {
+      tiles = Array.from({ length: 256 }, (_, index) => index);
+      size_x = 16;
+      size_y = 16;
+    }
+    else if (difficulty === 2) {
+      tiles = Array.from({ length: 480 }, (_, index) => index);
+      size_x = 16;
+      size_y = 30;
+    }
+    setStarted(false);
+    setBoard([]);
+    setRevealed(Array.from({ length: size_x }, () => Array(size_y).fill(false)));
+    setFlaggedTiles(Array.from({ length: size_x }, () => Array(size_y).fill(false)));
+    setGameEndMessage("")
+    setGameEndToggle(false);
+    visited = Array.from({ length: size_x }, () => Array(size_y).fill(false));
+    setClickCoords([]);
+    setRevealedCount(0);
+    setNumFlagsLeft(numMines[difficulty]);
   }
 
   useEffect(() => {
@@ -293,8 +327,16 @@ function Game({difficulty}: {difficulty: number}) {
     };
   }, []);
 
+  useEffect(() => {
+    reset();
+  }, [difficulty]);
+
   return (
     <div>
+      <div className="text-white left-1/2 transform -translate-x-1/2 absolute mt-4"
+        style={{ fontSize: ((window.innerHeight - 100) / size_x) / 2 + 'px' }}>
+        Flags left: {numFlagsLeft}
+      </div>
       <div
         className={clsx(
           'justify-self-center border-2 border-black grid', {
@@ -305,6 +347,7 @@ function Game({difficulty}: {difficulty: number}) {
           style={{
             gridTemplateColumns: `repeat(${size_y}, 1fr)`,
             gridTemplateRows: `repeat(${size_x}, 1fr)`,
+            paddingTop: (window.innerHeight - 120) / size_x
           }}
       >
         {tiles.map((tile, index) => {
@@ -327,18 +370,20 @@ function Game({difficulty}: {difficulty: number}) {
               setFlaggedTiles={setFlaggedTiles}
               updateClicked={updateClicked}
               changeClickCoords={changeClickCoords}
+              gameEndToggle={gameEndToggle}
+              setNumFlagsLeft={setNumFlagsLeft}
             />
           )})}
       </div>
       {
         <div
-          className="text-white text-center absolute top-[35%] left-1/2 transform -translate-x-1/2"
-          style={{
-            fontSize: ((window.innerHeight - 100) / size_x) + 'px',
-            textShadow: '2px 2px 20px rgba(0, 0, 0, 1)'
-          }}
-          dangerouslySetInnerHTML={{ __html: gameOverMessage }}
-        />
+        className="text-white text-center absolute top-[35%] left-1/2 transform -translate-x-1/2 font-bold text-outline"
+        style={{
+          fontSize: ((window.innerHeight - 100) / size_x) + 'px', 
+        }}
+        dangerouslySetInnerHTML={{ __html: gameOverMessage }}
+      />
+      
       }
     </div>  
   );
