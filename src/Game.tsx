@@ -377,7 +377,7 @@ function Game({difficulty}: {difficulty: number}) {
       </div>
       {
         <div
-        className="text-white text-center absolute top-[35%] left-1/2 transform -translate-x-1/2 font-bold text-outline"
+        className="text-white text-center absolute top-[25%] left-1/2 transform -translate-x-1/2 font-bold text-outline"
         style={{
           fontSize: ((window.innerHeight - 100) / size_x) + 'px', 
         }}

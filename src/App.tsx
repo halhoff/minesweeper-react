@@ -15,11 +15,11 @@ function App() {
         <p className="text-xl text-white p-4">Minesweeper by halhoff</p>
         <div className="text-white">
           <button onClick={() => handleDifficultyChange(0)}>Easy</button>
-          <button className="px-4 py-2" onClick={() => handleDifficultyChange(1)}>Medium</button>
+          <button className="px-4" onClick={() => handleDifficultyChange(1)}>Medium</button>
           <button onClick={() => handleDifficultyChange(2)}>Hard</button>
         </div>
       </header>
-      <Game key={difficulty} difficulty={difficulty} />
+      <Game key={difficulty} difficulty={difficulty}/>
     </div>
   );
 }
