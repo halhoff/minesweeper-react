@@ -135,11 +135,6 @@ function Tile({
         !isLastInRow ? 'border-b-0' : '',
         !isLastInCol ? 'border-r-0' : ''
       )}
-      style={{
-        width: (window.innerHeight - 250) / size_x,
-        height: (window.innerHeight - 250) / size_x,
-        outline: 'none'
-      }}
       onClick={() => {
         if (!gameEndToggle && !isFlagged) {
           renderTile();
@@ -339,15 +334,15 @@ function Game({difficulty}: {difficulty: number}) {
       </div>
       <div
         className={clsx(
-          'justify-self-center border-2 border-black grid', {
+          'justify-center border-2 border-black grid', {
             'grid-cols-9 grid-rows-9': difficulty === 0,
             'grid-cols-16 grid-rows-16': difficulty === 1,
             'grid-cols-30 grid-rows-16': difficulty === 2,
           })}
           style={{
-            gridTemplateColumns: `repeat(${size_y}, 1fr)`,
-            gridTemplateRows: `repeat(${size_x}, 1fr)`,
-            paddingTop: (window.innerHeight - 120) / size_x
+            gridTemplateColumns: `repeat(${size_y}, ${(window.innerHeight - 250) / size_x}px`,
+            gridTemplateRows: `repeat(${size_x}, ${(window.innerHeight - 250) / size_x}px)`,
+            paddingTop: (window.innerHeight - 120) / size_x,
           }}
       >
         {tiles.map((tile, index) => {
