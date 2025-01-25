@@ -3,9 +3,6 @@ import clsx from 'clsx';
 
 const numMines = [10, 40, 99];
 
-// TODO
-// timer
-
 function generateBoard(size_x: number, size_y: number, value: number, difficulty: number) {
   let board: number[][] = [];
   for (let j = 0; j < size_x; ++j) {
@@ -329,7 +326,7 @@ function Game({difficulty}: {difficulty: number}) {
   return (
     <div>
       <div className="text-white left-1/2 transform -translate-x-1/2 absolute mt-4"
-        style={{ fontSize: ((window.innerHeight - 100) / size_x) / 2 + 'px' }}>
+        style={{ fontSize: ((window.innerHeight - 250) / size_x) / 2 + 'px' }}>
         Flags left: {numFlagsLeft}
       </div>
       <div
@@ -340,9 +337,9 @@ function Game({difficulty}: {difficulty: number}) {
             'grid-cols-30 grid-rows-16': difficulty === 2,
           })}
           style={{
-            gridTemplateColumns: `repeat(${size_y}, ${(window.innerHeight - 250) / size_x}px`,
-            gridTemplateRows: `repeat(${size_x}, ${(window.innerHeight - 250) / size_x}px)`,
-            paddingTop: (window.innerHeight - 120) / size_x,
+            gridTemplateColumns: `repeat(${size_y}, ${(window.innerHeight - 300) / size_x}px`,
+            gridTemplateRows: `repeat(${size_x}, ${(window.innerHeight - 300) / size_x}px)`,
+            paddingTop: (window.innerHeight - 200) / size_x,
           }}
       >
         {tiles.map((tile, index) => {
